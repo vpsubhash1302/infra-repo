@@ -1,0 +1,75 @@
+trigger: none
+
+resources:
+  pipelines:
+  - pipeline: frontend-ci
+    source: 'frontend-CI'
+    trigger:
+      branches:
+        include:
+          - main
+  - pipeline: backend-ci
+    source: 'backend-CI'
+    trigger:
+      branches:
+        include:
+          - main
+
+variables:
+  acrName: 'restaurantacr13022002.azurecr.io'
+  k8sNamespace: 'default'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+- stage: CD
+  displayName: Deploy to AKS
+  jobs:
+  - deployment: DeployToAKS
+    displayName: Apply K8s manifests
+    environment: 'production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+
+          - task: KubernetesManifest@1
+            displayName: Deploy backend service
+            inputs:
+              action: deploy
+              kubernetesServiceConnection: 'aks-connection'
+              namespace: $(k8sNamespace)
+              manifests: |
+                k8s/backend-deployment.yaml
+                k8s/backend-service.yaml
+              containers: '$(acrName)/backend:latest'
+
+          - task: KubernetesManifest@1
+            displayName: Deploy frontend service
+            inputs:
+              action: deploy
+              kubernetesServiceConnection: 'aks-connection'
+              namespace: $(k8sNamespace)
+              manifests: |
+                k8s/frontend-deployment.yaml
+                k8s/frontend-service.yaml
+              containers: '$(acrName)/frontend:latest'
+
+          - task: KubernetesManifest@1
+            displayName: Apply ingress rules
+            inputs:
+              action: deploy
+              kubernetesServiceConnection: 'aks-connection'
+              namespace: $(k8sNamespace)
+              manifests: k8s/ingress.yaml
+
+          - task: Kubernetes@1
+            displayName: Verify pods are running
+            inputs:
+              connectionType: 'Kubernetes Service Connection'
+              kubernetesServiceConnection: 'aks-connection'
+              namespace: $(k8sNamespace)
+              command: 'get'
+              arguments: 'pods'
