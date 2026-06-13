@@ -64,12 +64,3 @@ stages:
               kubernetesServiceConnection: 'aks-connection'
               namespace: $(k8sNamespace)
               manifests: k8s/ingress.yaml
-
-          - task: Kubernetes@1
-            displayName: Verify pods are running
-            inputs:
-              connectionType: 'KubernetesServiceEndpoint'
-              kubernetesServiceEndpoint: 'aks-connection'
-              namespace: $(k8sNamespace)
-              command: 'get'
-              arguments: 'pods'
