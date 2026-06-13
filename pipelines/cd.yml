@@ -68,7 +68,7 @@ stages:
           - task: Kubernetes@1
             displayName: Verify pods are running
             inputs:
-              connectionType: 'Kubernetes Service Connection'
+              connectionType: 'KubernetesServiceConnection'
               kubernetesServiceConnection: 'aks-connection'
               namespace: $(k8sNamespace)
               command: 'get'
