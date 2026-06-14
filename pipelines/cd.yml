@@ -64,3 +64,13 @@ stages:
               kubernetesServiceConnection: 'aks-connection'
               namespace: $(k8sNamespace)
               manifests: k8s/ingress.yaml
+
+          - task: KubernetesManifest@1
+            displayName: Apply autoscalers
+            inputs:
+              action: deploy
+              kubernetesServiceConnection: 'aks-connection'
+              namespace: $(k8sNamespace)
+              manifests: |
+                k8s/frontend-hpa.yaml
+                k8s/backend-hpa.yaml
