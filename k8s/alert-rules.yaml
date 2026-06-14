@@ -1,0 +1,97 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: restaurant-alerts
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  groups:
+  - name: restaurant.pods
+    interval: 30s
+    rules:
+
+    # Alert if any pod is down
+    - alert: PodDown
+      expr: kube_pod_status_ready{namespace="default"} == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Pod {{ $labels.pod }} is down"
+        description: "Pod {{ $labels.pod }} has been down for more than 1 minute"
+
+    # Alert if pod keeps restarting
+    - alert: PodCrashLooping
+      expr: rate(kube_pod_container_status_restarts_total{namespace="default"}[5m]) > 0
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Pod {{ $labels.pod }} is crash looping"
+        description: "Pod {{ $labels.pod }} has restarted more than once in 5 minutes"
+
+    # Alert if CPU is very high
+    - alert: HighCPU
+      expr: |
+        rate(container_cpu_usage_seconds_total{namespace="default"}[5m]) * 100 > 80
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU on {{ $labels.pod }}"
+        description: "CPU usage is above 80% for 5 minutes on pod {{ $labels.pod }}"
+
+    # Alert if memory is very high
+    - alert: HighMemory
+      expr: |
+        container_memory_usage_bytes{namespace="default"}
+        / container_spec_memory_limit_bytes{namespace="default"} * 100 > 80
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High memory on {{ $labels.pod }}"
+        description: "Memory usage above 80% for 5 minutes on {{ $labels.pod }}"
+
+  - name: restaurant.availability
+    interval: 30s
+    rules:
+
+    # Alert if backend API is not responding
+    - alert: BackendDown
+      expr: |
+        kube_deployment_status_replicas_available{
+          namespace="default", deployment="backend"
+        } == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Backend is completely down"
+        description: "No backend pods are available for more than 1 minute"
+
+    # Alert if frontend is not responding
+    - alert: FrontendDown
+      expr: |
+        kube_deployment_status_replicas_available{
+          namespace="default", deployment="frontend"
+        } == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Frontend is completely down"
+        description: "No frontend pods are available for more than 1 minute"
+
+    # Alert if HPA has scaled to max — might need more nodes
+    - alert: HPAAtMaxReplicas
+      expr: |
+        kube_horizontalpodautoscaler_status_current_replicas
+        == kube_horizontalpodautoscaler_spec_max_replicas
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "HPA {{ $labels.horizontalpodautoscaler }} at max replicas"
+        description: "HPA has been at maximum replicas for 10 minutes — consider increasing maxReplicas"
