@@ -70,6 +70,8 @@ resource "azurerm_kubernetes_cluster" "aks" {
     load_balancer_sku = "standard"
   }
 
+  oidc_issuer_enabled = true
+
   tags = {
     project     = "restaurant"
     environment = var.environment
@@ -83,3 +85,4 @@ resource "azurerm_role_assignment" "aks_acr_pull" {
   scope                            = azurerm_container_registry.acr.id
   skip_service_principal_aad_check = true
 }
+
